@@ -37,3 +37,47 @@ Engineering journal for the Razorpay Buildathon project. Updated incrementally d
 **Solution:** Built a local simulator (`simulator.js`) that constructs realistic `payment.failed` webhook payloads (matching Razorpay's exact payload structure) and POSTs them to the local webhook endpoint. Webhook handler accepts simulated events when they carry a `X-Simulated-Event: true` header (skipping signature verification). This keeps the demo fully self-contained.
 
 **Status:** Resolved
+
+---
+
+## Step 4 — SQLite WAL Files Leaking Into Git
+
+**Problem:** After `git add -A`, SQLite's WAL-mode journal files (`audit.db-shm`, `audit.db-wal`) were staged despite `*.db` being in `.gitignore`.
+
+**Root Cause:** `.gitignore` only matched `*.db` — the WAL and SHM files have different extensions.
+
+**Solution:** Added `*.db-shm`, `*.db-wal`, and `*.db-journal` patterns to `.gitignore`. Ran `git rm --cached` to unstage the already-tracked files.
+
+**Status:** Resolved
+
+---
+
+## Step 5 — PowerShell `&&` Operator Not Supported
+
+**Problem:** Chained shell commands with `&&` failed in PowerShell with "not a valid statement separator."
+
+**Root Cause:** Older PowerShell versions don't support `&&` (it was added in PS 7+). The Windows environment uses an older version.
+
+**Solution:** Run each git command as a separate shell invocation instead of chaining.
+
+**Status:** Resolved
+
+---
+
+## Step 6 — Dashboard Auto-Refresh vs. Manual Refresh
+
+**Problem:** Deciding whether the dashboard should poll or require manual refresh.
+
+**Root Cause:** Design decision — real-time feel vs. server load.
+
+**Solution:** Implemented both: auto-refresh every 5 seconds via `setInterval` plus a manual "Refresh" button. For a demo with 50-200 events and a single user, 5-second polling is negligible load.
+
+**Status:** Resolved
+
+---
+
+## Summary
+
+**Total issues encountered:** 6
+
+**Biggest lesson learned:** Razorpay's test mode doesn't allow programmatic creation of failed payments — you can only trigger them through the checkout UI. Building a realistic webhook payload simulator was essential to making the demo self-contained and repeatable. The simulator's fidelity (matching Razorpay's exact payload structure and using real error codes) was the key to proving the classifier works correctly.
