@@ -70,7 +70,7 @@ A real-time dashboard showing:
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/YOUR_USERNAME/razorpay-retry-agent.git
+git clone https://github.com/Atharva1811/razorpay-retry-agent.git
 cd razorpay-retry-agent
 
 # 2. Install dependencies
