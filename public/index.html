@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payment Failure Retry Agent — Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --card: #1a1d27;
+      --border: #2a2d3a;
+      --text: #e4e4e7;
+      --muted: #a1a1aa;
+      --accent: #3b82f6;
+      --green: #22c55e;
+      --red: #ef4444;
+      --yellow: #eab308;
+      --orange: #f97316;
+      --purple: #a855f7;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #1e3a5f 0%, #0f1117 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 1.5rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header h1 {
+      font-size: 1.4rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    .btn {
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: all 0.15s;
+    }
+
+    .btn:hover { background: var(--border); }
+    .btn-danger { border-color: var(--red); color: var(--red); }
+    .btn-danger:hover { background: rgba(239, 68, 68, 0.15); }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
+
+    /* ── Summary Cards ─────────────────────────────── */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .summary-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+    }
+
+    .summary-card .label {
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
+    }
+
+    .summary-card .value {
+      font-size: 2rem;
+      font-weight: 700;
+    }
+
+    .summary-card .sub {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 0.25rem;
+    }
+
+    .value-green { color: var(--green); }
+    .value-red { color: var(--red); }
+    .value-yellow { color: var(--yellow); }
+    .value-accent { color: var(--accent); }
+
+    /* ── Charts Grid ───────────────────────────────── */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .chart-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+    }
+
+    .chart-card h3 {
+      font-size: 0.95rem;
+      margin-bottom: 1rem;
+      color: var(--muted);
+    }
+
+    .chart-wrapper {
+      position: relative;
+      height: 280px;
+    }
+
+    /* ── Audit Log Table ───────────────────────────── */
+    .table-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+      overflow: hidden;
+    }
+
+    .table-card h3 {
+      font-size: 0.95rem;
+      margin-bottom: 1rem;
+      color: var(--muted);
+    }
+
+    .table-scroll {
+      overflow-x: auto;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+
+    th {
+      text-align: left;
+      padding: 0.6rem 0.75rem;
+      background: rgba(255,255,255,0.03);
+      border-bottom: 1px solid var(--border);
+      color: var(--muted);
+      font-weight: 500;
+      text-transform: uppercase;
+      font-size: 0.7rem;
+      letter-spacing: 0.05em;
+      position: sticky;
+      top: 0;
+      background: var(--card);
+      z-index: 1;
+    }
+
+    td {
+      padding: 0.6rem 0.75rem;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      white-space: nowrap;
+    }
+
+    tr:hover td { background: rgba(255,255,255,0.02); }
+
+    /* ── Badges ─────────────────────────────────────── */
+    .badge {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-weight: 500;
+    }
+
+    .badge-network_gateway { background: rgba(249,115,22,0.15); color: var(--orange); }
+    .badge-otp_auth { background: rgba(168,85,247,0.15); color: var(--purple); }
+    .badge-insufficient_funds { background: rgba(234,179,8,0.15); color: var(--yellow); }
+    .badge-card_declined { background: rgba(239,68,68,0.15); color: var(--red); }
+    .badge-other { background: rgba(161,161,170,0.15); color: var(--muted); }
+
+    .badge-recovered { background: rgba(34,197,94,0.15); color: var(--green); }
+    .badge-failed { background: rgba(239,68,68,0.15); color: var(--red); }
+    .badge-pending { background: rgba(234,179,8,0.15); color: var(--yellow); }
+    .badge-notified { background: rgba(59,130,246,0.15); color: var(--accent); }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: var(--muted);
+    }
+
+    .empty-state p { margin-bottom: 0.5rem; }
+    .empty-state code {
+      background: var(--border);
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.85rem;
+    }
+
+    @media (max-width: 768px) {
+      .charts-grid { grid-template-columns: 1fr; }
+      .summary-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>⚡ Payment Failure Retry Agent</h1>
+    <div class="header-actions">
+      <button class="btn" onclick="refresh()">🔄 Refresh</button>
+      <button class="btn btn-danger" onclick="resetData()">🗑️ Reset Data</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- Summary Cards -->
+    <div class="summary-grid" id="summaryCards">
+      <div class="summary-card">
+        <div class="label">Total Failures</div>
+        <div class="value value-accent" id="totalFailures">—</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">Recovered</div>
+        <div class="value value-green" id="totalRecovered">—</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">Recovery Rate</div>
+        <div class="value value-green" id="recoveryRate">—</div>
+        <div class="sub">vs. 0% without agent</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">Actions Taken</div>
+        <div class="value value-yellow" id="actionsTaken">—</div>
+        <div class="sub">automated interventions</div>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="charts-grid">
+      <div class="chart-card">
+        <h3>📊 Before vs. After Recovery Rate</h3>
+        <div class="chart-wrapper">
+          <canvas id="recoveryChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h3>🏷️ Failure Distribution by Root Cause</h3>
+        <div class="chart-wrapper">
+          <canvas id="bucketChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h3>🎯 Recovery Rate by Bucket</h3>
+        <div class="chart-wrapper">
+          <canvas id="bucketRecoveryChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h3>📋 Outcome Distribution</h3>
+        <div class="chart-wrapper">
+          <canvas id="outcomeChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Audit Log Table -->
+    <div class="table-card">
+      <h3>📝 Audit Log — Failure → Classification → Action → Outcome</h3>
+      <div class="table-scroll" id="tableContainer">
+        <div class="empty-state">
+          <p>No data yet. Run the simulator to generate test events:</p>
+          <code>npm run simulate</code>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const BUCKET_LABELS = {
+      network_gateway: 'Network / Gateway',
+      otp_auth: 'OTP / Auth Timeout',
+      insufficient_funds: 'Insufficient Funds',
+      card_declined: 'Card Declined',
+      other: 'Other',
+    };
+
+    const BUCKET_COLORS = {
+      network_gateway: '#f97316',
+      otp_auth: '#a855f7',
+      insufficient_funds: '#eab308',
+      card_declined: '#ef4444',
+      other: '#6b7280',
+    };
+
+    let charts = {};
+
+    // ── Fetch Data ──────────────────────────────────────────────────────
+
+    async function fetchStats() {
+      const res = await fetch('/api/dashboard');
+      return res.json();
+    }
+
+    async function fetchEvents() {
+      const res = await fetch('/api/events?limit=200');
+      return res.json();
+    }
+
+    // ── Update Summary Cards ────────────────────────────────────────────
+
+    function updateSummary(stats) {
+      document.getElementById('totalFailures').textContent = stats.total || 0;
+      document.getElementById('totalRecovered').textContent = stats.recovered || 0;
+      document.getElementById('recoveryRate').textContent = stats.total > 0
+        ? `${stats.recoveryRate}%`
+        : '—';
+      document.getElementById('actionsTaken').textContent = stats.actionable || 0;
+    }
+
+    // ── Charts ──────────────────────────────────────────────────────────
+
+    function renderRecoveryChart(stats) {
+      const ctx = document.getElementById('recoveryChart').getContext('2d');
+      if (charts.recovery) charts.recovery.destroy();
+
+      charts.recovery = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['Without Agent', 'With Agent'],
+          datasets: [{
+            label: 'Recovery Rate (%)',
+            data: [0, parseFloat(stats.recoveryRate) || 0],
+            backgroundColor: ['rgba(239, 68, 68, 0.6)', 'rgba(34, 197, 94, 0.6)'],
+            borderColor: ['#ef4444', '#22c55e'],
+            borderWidth: 2,
+            borderRadius: 6,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => `${ctx.parsed.y.toFixed(1)}% recovery`,
+              },
+            },
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 100,
+              ticks: { color: '#a1a1aa', callback: (v) => v + '%' },
+              grid: { color: 'rgba(255,255,255,0.05)' },
+            },
+            x: {
+              ticks: { color: '#a1a1aa' },
+              grid: { display: false },
+            },
+          },
+        },
+      });
+    }
+
+    function renderBucketChart(stats) {
+      const ctx = document.getElementById('bucketChart').getContext('2d');
+      if (charts.bucket) charts.bucket.destroy();
+
+      const labels = stats.bucketBreakdown.map((b) => BUCKET_LABELS[b.bucket] || b.bucket);
+      const data = stats.bucketBreakdown.map((b) => b.count);
+      const colors = stats.bucketBreakdown.map((b) => BUCKET_COLORS[b.bucket] || '#6b7280');
+
+      charts.bucket = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels,
+          datasets: [{
+            data,
+            backgroundColor: colors.map((c) => c + '99'),
+            borderColor: colors,
+            borderWidth: 2,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'right',
+              labels: { color: '#a1a1aa', font: { size: 11 }, padding: 12 },
+            },
+          },
+        },
+      });
+    }
+
+    function renderBucketRecoveryChart(stats) {
+      const ctx = document.getElementById('bucketRecoveryChart').getContext('2d');
+      if (charts.bucketRecovery) charts.bucketRecovery.destroy();
+
+      const labels = stats.bucketRecovery.map((b) => BUCKET_LABELS[b.bucket] || b.bucket);
+      const rates = stats.bucketRecovery.map((b) =>
+        b.total > 0 ? ((b.recovered / b.total) * 100).toFixed(1) : 0
+      );
+      const colors = stats.bucketRecovery.map((b) => BUCKET_COLORS[b.bucket] || '#6b7280');
+
+      charts.bucketRecovery = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Recovery %',
+            data: rates,
+            backgroundColor: colors.map((c) => c + '80'),
+            borderColor: colors,
+            borderWidth: 2,
+            borderRadius: 6,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          indexAxis: 'y',
+          plugins: {
+            legend: { display: false },
+          },
+          scales: {
+            x: {
+              beginAtZero: true,
+              max: 100,
+              ticks: { color: '#a1a1aa', callback: (v) => v + '%' },
+              grid: { color: 'rgba(255,255,255,0.05)' },
+            },
+            y: {
+              ticks: { color: '#a1a1aa', font: { size: 11 } },
+              grid: { display: false },
+            },
+          },
+        },
+      });
+    }
+
+    function renderOutcomeChart(stats) {
+      const ctx = document.getElementById('outcomeChart').getContext('2d');
+      if (charts.outcome) charts.outcome.destroy();
+
+      const outcomeColors = {
+        recovered: '#22c55e',
+        failed: '#ef4444',
+        pending: '#eab308',
+        notified: '#3b82f6',
+      };
+
+      const labels = stats.outcomeBreakdown.map((o) => o.outcome || 'unknown');
+      const data = stats.outcomeBreakdown.map((o) => o.count);
+      const colors = labels.map((l) => outcomeColors[l] || '#6b7280');
+
+      charts.outcome = new Chart(ctx, {
+        type: 'pie',
+        data: {
+          labels: labels.map((l) => l.charAt(0).toUpperCase() + l.slice(1)),
+          datasets: [{
+            data,
+            backgroundColor: colors.map((c) => c + '99'),
+            borderColor: colors,
+            borderWidth: 2,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'right',
+              labels: { color: '#a1a1aa', font: { size: 11 }, padding: 12 },
+            },
+          },
+        },
+      });
+    }
+
+    // ── Audit Log Table ─────────────────────────────────────────────────
+
+    function renderTable(events) {
+      const container = document.getElementById('tableContainer');
+
+      if (!events || events.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <p>No data yet. Run the simulator to generate test events:</p>
+            <code>npm run simulate</code>
+          </div>`;
+        return;
+      }
+
+      const rows = events.map((e) => `
+        <tr>
+          <td style="font-family: monospace; font-size: 0.75rem;">${e.payment_id || '—'}</td>
+          <td>₹${((e.amount || 0) / 100).toFixed(2)}</td>
+          <td>${e.method || '—'}</td>
+          <td><span class="badge badge-${e.bucket}">${BUCKET_LABELS[e.bucket] || e.bucket}</span></td>
+          <td style="max-width:200px; overflow:hidden; text-overflow:ellipsis;">${e.error_reason || '—'}</td>
+          <td>${e.action_taken || '—'}</td>
+          <td><span class="badge badge-${e.outcome}">${e.outcome || '—'}</span></td>
+          <td style="font-size:0.72rem; color:var(--muted);">${e.failed_at ? new Date(e.failed_at).toLocaleString() : '—'}</td>
+        </tr>
+      `).join('');
+
+      container.innerHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>Payment ID</th>
+              <th>Amount</th>
+              <th>Method</th>
+              <th>Root Cause</th>
+              <th>Error Reason</th>
+              <th>Action</th>
+              <th>Outcome</th>
+              <th>Failed At</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>`;
+    }
+
+    // ── Refresh & Reset ─────────────────────────────────────────────────
+
+    async function refresh() {
+      try {
+        const [stats, events] = await Promise.all([fetchStats(), fetchEvents()]);
+        updateSummary(stats);
+        renderRecoveryChart(stats);
+        renderBucketChart(stats);
+        renderBucketRecoveryChart(stats);
+        renderOutcomeChart(stats);
+        renderTable(events);
+      } catch (err) {
+        console.error('Refresh error:', err);
+      }
+    }
+
+    async function resetData() {
+      if (!confirm('Clear all audit data? This cannot be undone.')) return;
+      await fetch('/api/reset', { method: 'POST' });
+      refresh();
+    }
+
+    // Initial load
+    refresh();
+
+    // Auto-refresh every 5 seconds
+    setInterval(refresh, 5000);
+  </script>
+</body>
+</html>

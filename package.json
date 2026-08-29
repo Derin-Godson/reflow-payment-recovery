@@ -1,0 +1,20 @@
+{
+  "name": "razorpay-retry-agent",
+  "version": "1.0.0",
+  "description": "AI-assisted Payment Failure Root-Cause & Retry Agent for Razorpay",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "simulate": "node src/simulator.js",
+    "dev": "node src/server.js"
+  },
+  "keywords": ["razorpay", "payment", "retry", "webhook", "fintech"],
+  "license": "MIT",
+  "dependencies": {
+    "better-sqlite3": "^11.7.0",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "razorpay": "^2.9.5",
+    "uuid": "^11.1.0"
+  }
+}
