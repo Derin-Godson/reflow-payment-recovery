@@ -32,6 +32,10 @@ function initDatabase() {
       -- Classification
       bucket            TEXT NOT NULL,
       matched_rule      TEXT,
+      reflow_action     TEXT,
+reflow_score      REAL,
+guardrail_applied INTEGER DEFAULT 0,
+guardrail_reason  TEXT,
       -- Action
       action_taken      TEXT,
       action_detail     TEXT,
@@ -60,13 +64,15 @@ function insertEvent(event) {
       id, payment_id, order_id, amount, currency, method, contact, email,
       error_code, error_source, error_reason, error_step, error_description,
       bucket, matched_rule,
-      action_taken, action_detail, outcome,
+reflow_action, reflow_score, guardrail_applied, guardrail_reason,
+action_taken, action_detail, outcome,
       failed_at, actioned_at, resolved_at
     ) VALUES (
       @id, @payment_id, @order_id, @amount, @currency, @method, @contact, @email,
       @error_code, @error_source, @error_reason, @error_step, @error_description,
       @bucket, @matched_rule,
-      @action_taken, @action_detail, @outcome,
+@reflow_action, @reflow_score, @guardrail_applied, @guardrail_reason,
+@action_taken, @action_detail, @outcome,
       @failed_at, @actioned_at, @resolved_at
     )
   `);

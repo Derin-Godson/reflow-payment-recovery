@@ -243,9 +243,22 @@ const ACTION_HANDLERS = {
  * @param {Object|null} razorpay - Razorpay SDK instance (null = simulate).
  * @returns {Promise<Object>} Action result with action_taken, outcome, etc.
  */
-async function executeAction(bucket, paymentData, razorpay) {
+async function executeAction(bucket, paymentData, razorpay, decision = null) {
+  if (decision?.action) {
+    const actionMap = {
+      retry_1h: handleNetworkGateway,
+      retry_6h: handleNetworkGateway,
+      retry_24h: handleInsufficientFunds,
+      payment_link: handleOtpAuth,
+      alternate_method: handleCardDeclined,
+      no_retry: handleOther,
+    };
+
+    const handler = actionMap[decision.action] || ACTION_HANDLERS[bucket] || ACTION_HANDLERS.other;
+    return handler(paymentData, razorpay);
+  }
+
   const handler = ACTION_HANDLERS[bucket] || ACTION_HANDLERS.other;
   return handler(paymentData, razorpay);
 }
-
 module.exports = { executeAction, RECOVERY_RATES, ACTION_HANDLERS };
